@@ -3,6 +3,7 @@ import requests
 from dotenv import load_dotenv
 from PIL.Image import Image
 import time
+import base64
 
 
 # get from environment variables
@@ -22,8 +23,14 @@ def gen_vid(
     """
     This tool generate video from and image using prompt and negative prompt.
 
+    While the task is being processed the return is:
+        Waiting for the task to complete... (current status: IN_PROGRESS)
+    When the task is completed the return is:
+        COMPLETED
+        Video successfully downloaded as /path/to/generated_video.mp4
+
     Args:
-        image (str): The input image url.
+        image (str): The input image url or image path.
         prompt (str): The prompt to guide the video generation.
         negative_prompt (str): The negative prompt to avoid certain elements in the video.
         duration (int): The duration of the generated video in seconds. Default is 5. options: 5, 10
@@ -34,6 +41,16 @@ def gen_vid(
         "x-freepik-api-key": f"{FREEPIK_API_KEY}",
         "Content-Type": "application/json",
     }
+
+    # prepare image payload
+    if image.startswith("http://") or image.startswith("https://"):
+        pass  # image is already a URL
+    else:
+        # assume image is an image path and should be converted to base64 string
+        with open(image, "rb") as image_file:
+            image = "data:image/jpeg;base64," + base64.b64encode(
+                image_file.read()
+            ).decode("utf-8")
 
     payload = {
         "image": image,
@@ -93,11 +110,15 @@ def gen_vid(
         )
 
 
-if __name__ == "__main__":
-    image_URL = "https://img.b2bpic.net/premium-photo/portrait-smiling-senior-woman-blue-vintage-convertible_220770-28364.jpg"
-    gen_vid(
-        image=image_URL,
-        prompt="A happy elderly woman driving a car and then the camera swithches to a mountain road with trees on both sides, sunny weather, vibrant colors, cinematic",
-        negative_prompt="blurry, low resolution, dark, gloomy, cartoon",
-        duration=5,
-    )
+# if __name__ == "__main__":
+#     # image_URL = "https://img.b2bpic.net/premium-photo/portrait-smiling-senior-woman-blue-vintage-convertible_220770-28364.jpg"
+#     current_dir = os.path.dirname(os.path.abspath(__file__))
+#     with open(os.path.join(current_dir, "s-bg3.jpg"), "rb") as image_file:
+#         image_base64 = base64.b64encode(image_file.read()).decode("utf-8")
+
+#         gen_vid(
+#             image=f"data:image/jpeg;base64,{image_base64}",
+#             prompt="create a shock and make the stones float into the sky. create a blue light around the stones when they are floated.",
+#             negative_prompt="blurry, low resolution, dark, gloomy, cartoon",
+#             duration=5,
+#         )
