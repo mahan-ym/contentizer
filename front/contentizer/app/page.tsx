@@ -7,7 +7,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <header className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-3">
-            <span className="text-4xl font-bold tracking-tight">Contentizer</span>
+            <span className="md:text-4xl text-2xl font-bold tracking-tight">Contentizer</span>
           </div>
         </header>
 
