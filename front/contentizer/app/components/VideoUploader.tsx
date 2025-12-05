@@ -1,5 +1,8 @@
 'use client';
 import { useState } from 'react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUpload } from "@fortawesome/free-solid-svg-icons"
+
 
 export default function VideoUploader() {
     const [isDragging, setIsDragging] = useState(false);
@@ -21,7 +24,7 @@ export default function VideoUploader() {
                     onDrop={(e) => { e.preventDefault(); setIsDragging(false); }}
                 >
                     <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+                        <FontAwesomeIcon className='text-lg md:text-2xl' icon={faUpload} />
                     </div>
                     <div className="text-center">
                         <p className="font-medium md:text-lg text-base">Click to upload or drag and drop</p>
