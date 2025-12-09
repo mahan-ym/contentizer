@@ -2,10 +2,44 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUpload } from "@fortawesome/free-solid-svg-icons"
-
+import { uploadVideo } from "../lib/file";
 
 export default function VideoUploader() {
     const [isDragging, setIsDragging] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState<string | undefined>(undefined);
+    const [videoFile, setVideoFile] = useState<File | null>(null);
+
+    const handleOnDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    }
+    const handleOnDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    }
+    const handleOnDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        setVideoFile(e.dataTransfer.files[0]);
+        handleSubmit();
+    }
+
+    async function handleSubmit() {
+        if (videoFile) {
+            setIsProcessing(true);
+            setError(undefined);
+
+            try {
+                await uploadVideo(videoFile);
+            } catch (error: any) {
+                setError(error.message);
+            } finally {
+                setIsProcessing(false);
+                setVideoFile(null); // Clear selected video
+            }
+        }
+    }
 
     return (
         <div className="text-white flex flex-col items-center justify-center p-6">
@@ -19,9 +53,9 @@ export default function VideoUploader() {
               aspect-video rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center gap-4 cursor-pointer
               ${isDragging ? 'border-purple-500 bg-purple-500/10 scale-[1.02]' : 'border-zinc-700 hover:border-zinc-500 hover:bg-zinc-900'}
             `}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); }}
+                    onDragOver={handleOnDragOver}
+                    onDragLeave={handleOnDragLeave}
+                    onDrop={handleOnDrop}
                 >
                     <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
                         <FontAwesomeIcon className='text-lg md:text-2xl' icon={faUpload} />
