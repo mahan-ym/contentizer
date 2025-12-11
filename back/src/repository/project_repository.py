@@ -7,7 +7,8 @@ class ProjectRepository(BaseRepository):
         super().__init__(mongo)
 
     def get_user_projects(self, user_id, count, index) -> list[ProjectModel]:
-        return self.database["projects"].find({"user_id": user_id}).skip(index).limit(count)
+        cursor = self.database["projects"].find({"user_id": user_id}).skip(index).limit(count)
+        return [ProjectModel(**project) for project in cursor]
 
     def get_project(self, project_id: str) -> ProjectModel:
         return self.database["projects"].find_one({"project_id": project_id})

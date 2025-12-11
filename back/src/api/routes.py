@@ -9,6 +9,7 @@ from src.services.uuid import gen_uuid_str
 from src.repository.project_repository import ProjectRepository
 from src.models.project_model import ProjectModel
 from src.services.mongo_client import MongoClientSingleton
+from datetime import datetime
 
 router = APIRouter()
 
@@ -39,13 +40,29 @@ async def upload_file(file: UploadFile = File(...)):
         file_path = os.path.join(new_project_directory, new_filename)
         mongo_client = MongoClientSingleton()
         with ProjectRepository(mongo_client) as project_repository:
-            project_repository.create_project(data = ProjectModel(project_id=project_unique_id, project_file_id=new_filename, user_id="0", project_location=project_location))
+            project_repository.create_project(data = ProjectModel(
+                name=file.filename,
+                project_id=project_unique_id,
+                project_file_id=new_filename,
+                user_id="0",
+                project_location=project_location,
+                last_edited= datetime.now().isoformat(),
+                thumbnail="https://placehold.co/400"
+                ))
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         return {"filename": new_filename, "url": f"/api/stream/{new_filename}"}
     except Exception as e:
         print(e.__str__())
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/recent_projects", response_model=list[ProjectModel])
+async def get_recent_projects():
+    mongo_client = MongoClientSingleton()
+    with ProjectRepository(mongo_client) as project_repository:
+        projects = project_repository.get_user_projects(user_id="0", count=10, index=0)
+        return [project for project in projects]
+    return []
 
 @router.get("/stream/{filename}")
 async def stream_video(filename: str, range: Optional[str] = None):
@@ -59,13 +76,7 @@ async def stream_video(filename: str, range: Optional[str] = None):
         raise HTTPException(status_code=404, detail="File not found")
     
     file_size = os.path.getsize(file_path)
-    
-    # Simple full file response for now, or use range handling similar to previous nextjs app
-    # FastAPI's FileResponse handles ranges automatically if headers are passed? 
-    # Actually FileResponse doesn't strictly support Range header out of box for video seeking in all cases without extra setup.
-    # But for simplicity let's try FileResponse first. If seeking breaks we can implement manual streaming generator.
-    
-    # Implementing manual range handling for better video support
+        
     start = 0
     end = file_size - 1
     
