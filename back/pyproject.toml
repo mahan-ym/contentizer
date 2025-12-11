@@ -9,4 +9,7 @@ dependencies = [
     "google-adk>=1.19.0",
     "pillow>=12.0.0",
     "pytest>=9.0.1",
+    "uvicorn>=0.30.0",
+    "fastapi[standard]",
+    "python-multipart>=0.0.9",
 ]
