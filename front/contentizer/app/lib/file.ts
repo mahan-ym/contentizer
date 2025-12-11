@@ -11,4 +11,15 @@ export async function uploadVideo(
     if (title) {
         formData.append("title", title);
     }
+
+    const response = await fetch("http://localhost:8000/api/upload", {
+        method: "POST",
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to upload video");
+    }
+
+    return response.json();
 }
