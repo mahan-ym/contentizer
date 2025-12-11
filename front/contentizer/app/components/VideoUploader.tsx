@@ -1,14 +1,28 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUpload } from "@fortawesome/free-solid-svg-icons"
 import { uploadVideo } from "../lib/file";
 
 export default function VideoUploader() {
+    const router = useRouter();
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
     const [videoFile, setVideoFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleBoxClick = () => {
+        fileInputRef.current?.click();
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setVideoFile(e.target.files[0]);
+            handleSubmit(e.target.files[0]);
+        }
+    }
 
     const handleOnDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -25,13 +39,18 @@ export default function VideoUploader() {
         handleSubmit();
     }
 
-    async function handleSubmit() {
-        if (videoFile) {
+    async function handleSubmit(file?: File) {
+        const fileToUpload = file || videoFile;
+        if (fileToUpload) {
             setIsProcessing(true);
             setError(undefined);
 
             try {
-                await uploadVideo(videoFile);
+                const result = await uploadVideo(fileToUpload);
+                if (result.filename) {
+                    console.log(result);
+                    router.push(`/${result.filename}`);
+                }
             } catch (error: any) {
                 setError(error.message);
             } finally {
@@ -43,12 +62,25 @@ export default function VideoUploader() {
 
     return (
         <div className="text-white flex flex-col items-center justify-center p-6">
+
             <div className="w-full max-w-2xl">
                 <div className="text-center mb-8">
                     <h1 className="md:text-2xl text-xl font-bold mb-2">Upload New Video & Start Your Project.</h1>
                 </div>
 
+                {isProcessing && <p>Processing...</p>}
+                {error && <p className="text-red-500">{error}</p>}
+
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="video/mp4,video/quicktime,video/webm"
+                />
+
                 <div
+                    onClick={handleBoxClick}
                     className={`
               aspect-video rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center gap-4 cursor-pointer
               ${isDragging ? 'border-purple-500 bg-purple-500/10 scale-[1.02]' : 'border-zinc-700 hover:border-zinc-500 hover:bg-zinc-900'}
