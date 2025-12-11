@@ -6,6 +6,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Body
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from src.services.uuid import gen_uuid_str
+from src.repository.project_repository import ProjectRepository
+from src.models.project_model import ProjectModel
+from src.services.mongo_client import MongoClientSingleton
 
 router = APIRouter()
 
@@ -31,8 +34,12 @@ async def upload_file(file: UploadFile = File(...)):
         os.mkdir(os.path.join(ASSETS_DIR, project_unique_id))
         new_project_directory = os.path.join(ASSETS_DIR, project_unique_id)
         new_filename = f"{gen_uuid_str()}{file.filename}"
+        project_location = os.path.join(project_unique_id, new_filename)
 
         file_path = os.path.join(new_project_directory, new_filename)
+        mongo_client = MongoClientSingleton()
+        with ProjectRepository(mongo_client) as project_repository:
+            project_repository.create_project(data = ProjectModel(project_id=project_unique_id, project_file_id=new_filename, user_id="0", project_location=project_location))
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         return {"filename": new_filename, "url": f"/api/stream/{new_filename}"}
@@ -42,7 +49,12 @@ async def upload_file(file: UploadFile = File(...)):
 
 @router.get("/stream/{filename}")
 async def stream_video(filename: str, range: Optional[str] = None):
-    file_path = os.path.join(ASSETS_DIR, filename)
+    mongo_client = MongoClientSingleton()
+    project_path = ""
+    with ProjectRepository(mongo_client) as project_repository:
+        project = project_repository.get_project_by_file_id(filename)
+        project_path = project["project_location"]
+    file_path = os.path.join(ASSETS_DIR, project_path)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     
