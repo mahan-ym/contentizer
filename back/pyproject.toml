@@ -12,4 +12,5 @@ dependencies = [
     "uvicorn>=0.30.0",
     "fastapi[standard]",
     "python-multipart>=0.0.9",
+    "pymongo>=4.15.5",
 ]
