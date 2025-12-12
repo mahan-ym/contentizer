@@ -1,0 +1,20 @@
+export async function generatePrompt(
+    video_id: string,
+    time: number,
+    prompt: string
+): Promise<any> {
+    const response = await fetch("http://localhost:8000/api/prompt", {
+        method: "POST",
+        body: JSON.stringify({
+            video_id: video_id,
+            time: time,
+            prompt: prompt,
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to generate prompt");
+    }
+
+    return response.json();
+}
