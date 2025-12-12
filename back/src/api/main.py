@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import router
+from src.api.video_routes import router as video_router
 
 app = FastAPI(title="Contentizer API")
 
@@ -14,6 +15,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+app.include_router(video_router, prefix="/api/video")
 
 @app.get("/health")
 async def health_check():

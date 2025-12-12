@@ -1,9 +1,8 @@
 import os
 import shutil
-import ffmpeg
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException, Body
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from src.services.uuid import gen_uuid_str
 from src.repository.project_repository import ProjectRepository
@@ -18,11 +17,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 os.makedirs(ASSETS_DIR, exist_ok=True)
-
-class TrimRequest(BaseModel):
-    filename: str
-    start_time: float
-    end_time: float
 
 class PromptRequest(BaseModel):
     prompt: str
@@ -103,27 +97,6 @@ async def stream_video(filename: str, range: Optional[str] = None):
     }
     
     return StreamingResponse(iterfile(), status_code=206, headers=headers)
-
-@router.post("/trim")
-async def trim_video(request: TrimRequest):
-    input_path = os.path.join(ASSETS_DIR, request.filename)
-    if not os.path.exists(input_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    output_filename = f"trimmed_{request.filename}"
-    output_path = os.path.join(ASSETS_DIR, output_filename)
-    
-    try:
-        (
-            ffmpeg
-            .input(input_path, ss=request.start_time, to=request.end_time)
-            .output(output_path, c="copy") # Stream copy is faster, but might need re-encoding if keyframes don't align
-            .overwrite_output()
-            .run(quiet=True)
-        )
-        return {"filename": output_filename, "url": f"/api/stream/{output_filename}"}
-    except ffmpeg.Error as e:
-        raise HTTPException(status_code=500, detail=f"FFmpeg error: {str(e)}")
 
 @router.post("/agent/prompt")
 async def get_agent_prompt(request: PromptRequest):
