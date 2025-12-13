@@ -49,7 +49,7 @@ export default function VideoUploader() {
                 const result = await uploadVideo(fileToUpload);
                 if (result.filename) {
                     console.log(result);
-                    router.push(`/${result.filename}`);
+                    router.push(`/${result.project}`);
                 }
             } catch (error: any) {
                 setError(error.message);

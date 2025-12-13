@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from PIL.Image import Image
 import time
 import base64
+from src.services.uuid import gen_uuid_str
+from src.global_constants import ASSETS_DIR
 
 
 # get from environment variables
@@ -34,6 +36,9 @@ def gen_vid(
         prompt (str): The prompt to guide the video generation.
         negative_prompt (str): The negative prompt to avoid certain elements in the video.
         duration (int): The duration of the generated video in seconds. Default is 5. options: 5, 10
+
+    Returns:
+        str: The absolute path to the generated video file, or None if generation failed.
     """
     endpoint = f"{BASE_URL}/ai/image-to-video/kling-v2-5-pro"
 
@@ -93,34 +98,45 @@ def gen_vid(
             print("COMPLETED")
             # Download the video ---------------------------------------------------------------
             VIDEO_URL = response.json()["data"]["generated"][0]
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            file_name = os.path.join(current_dir, "generated_video.mp4")
+            video_uuid = gen_uuid_str()
+            video_path = os.path.join(ASSETS_DIR, video_uuid)
+            os.makedirs(video_path, exist_ok=True)
+            file_name = os.path.join(video_path, f"{video_uuid}.mp4")
             video_response = requests.get(VIDEO_URL)
             if video_response.status_code == 200:
                 with open(file_name, "wb") as f:
                     f.write(video_response.content)
                 print(f"Video successfully downloaded as {file_name}")
+                return file_name
             else:
                 print(
                     f"Could not download the video. Status code: {video_response.status_code}"
                 )
+                return None
     else:
         print(
             f"Error while generating the video. Status code: {response.status_code}, message: {response.json()['message']}"
         )
+        return None
 
 
 def gen_image(
     prompt: str,
-    aspect_ratio: str = "square_1_1",
+    aspect_ratio: str = "widescreen_16_9",
 ):
     """
-    
+    Generate an image from a text prompt and save it with a unique UUID.
+
+    Returns the file path of the generated image for use in video generation.
+
     args:
         prompt (str): The prompt to guide the image generation.
-        aspect_ratio (str): The aspect ratio of the generated image. 
-            Available options: square_1_1, classic_4_3, traditional_3_4, widescreen_16_9, social_story_9_16, standard_3_2, portrait_2_3, horizontal_2_1, vertical_1_2, social_post_4_5 
-            Example: "square_1_1"
+        aspect_ratio (str): The aspect ratio of the generated image.
+            Available options: square_1_1, classic_4_3, traditional_3_4, widescreen_16_9, social_story_9_16, standard_3_2, portrait_2_3, horizontal_2_1, vertical_1_2, social_post_4_5
+            Example: "widescreen_16_9"
+
+    returns:
+        str: The absolute path to the generated image file, or None if generation failed.
     """
     endpoint = f"{BASE_URL}/ai/text-to-image/flux-pro-v1-1"
     headers = {
@@ -148,9 +164,7 @@ def gen_image(
         while status != "COMPLETED":
             print(f"Waiting for the task to complete... (current status: {status})")
             time.sleep(2)  # Wait 2 seconds before checking again
-            status_url = (
-                f"{BASE_URL}/ai/text-to-image/flux-pro-v1-1/{task_id}"
-            )
+            status_url = f"{BASE_URL}/ai/text-to-image/flux-pro-v1-1/{task_id}"
             response = requests.get(
                 status_url,
                 headers={"x-freepik-api-key": f"{FREEPIK_API_KEY}"},
@@ -169,37 +183,44 @@ def gen_image(
             print("COMPLETED")
             # Download the image ---------------------------------------------------------------
             IMAGE_URL = response.json()["data"]["generated"][0]
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            file_name = os.path.join(current_dir, "generated_image.jpeg")
+
+            # Generate unique ID and create assets directory structure
+            image_uuid = gen_uuid_str()
+
+            assets_dir = os.path.join(ASSETS_DIR, image_uuid)
+            os.makedirs(assets_dir, exist_ok=True)
+
+            file_name = os.path.join(assets_dir, f"{image_uuid}.jpeg")
             image_response = requests.get(IMAGE_URL)
             if image_response.status_code == 200:
                 with open(file_name, "wb") as f:
                     f.write(image_response.content)
                 print(f"Image successfully downloaded as {file_name}")
+                return file_name
             else:
                 print(
                     f"Could not download the image. Status code: {image_response.status_code}"
                 )
+                return None
     else:
         print(
             f"Error while generating the image. Status code: {response.status_code}, message: {response.json()['message']}"
         )
+        return None
 
 
+# if __name__ == "__main__":
+# image_URL = "https://img.b2bpic.net/premium-photo/portrait-smiling-senior-woman-blue-vintage-convertible_220770-28364.jpg"
+# current_dir = os.path.dirname(os.path.abspath(__file__))
 
+# gen_vid(
+#     image= os.path.join(current_dir, "s-bg3.jpg"),
+#     prompt="create a shock and make the stones float into the sky. create a blue light around the stones when they are floated.",
+#     negative_prompt="blurry, low resolution, dark, gloomy, cartoon",
+#     duration=5,
+# )
 
-if __name__ == "__main__":
-    # image_URL = "https://img.b2bpic.net/premium-photo/portrait-smiling-senior-woman-blue-vintage-convertible_220770-28364.jpg"
-    # current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # gen_vid(
-    #     image= os.path.join(current_dir, "s-bg3.jpg"),
-    #     prompt="create a shock and make the stones float into the sky. create a blue light around the stones when they are floated.",
-    #     negative_prompt="blurry, low resolution, dark, gloomy, cartoon",
-    #     duration=5,
-    # )
-
-    gen_image(
-        prompt="A Beautiful animated wrench flying toward the a bolt to fasten it, high detail, vibrant colors, dynamic lighting, dramatic angle, digital art",
-        aspect_ratio="widescreen_16_9",
-    )
+# gen_image(
+#     prompt="A Beautiful animated wrench flying toward the a bolt to fasten it, high detail, vibrant colors, dynamic lighting, dramatic angle, digital art",
+#     aspect_ratio="widescreen_16_9",
+# )

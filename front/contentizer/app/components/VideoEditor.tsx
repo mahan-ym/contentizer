@@ -4,8 +4,19 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlay, faPause, faScissors, faMousePointer } from "@fortawesome/free-solid-svg-icons";
 import { trimVideo, getVideoInfo } from "../lib/video";
 import { getVideoStream } from "../lib/stream";
+import PromptInput from "./PromptInput";
 
-export default function VideoEditor({ vidId }: { vidId: string }) {
+function get_video_location(info: any): string {
+    console.log(info.project)
+    const project_versions = info.project.project_versions;
+    console.log(project_versions);
+    const project_tracks = project_versions[0].project_tracks;
+    console.log(project_tracks);
+    return project_tracks[0].track_location;
+}
+
+
+export default function VideoEditor({ project_id }: { project_id: string }) {
     const [projectName, setProjectName] = useState("");
     const [projectLoc, setProjectLoc] = useState("");
 
@@ -28,18 +39,18 @@ export default function VideoEditor({ vidId }: { vidId: string }) {
     useEffect(() => {
         async function fetchVideoInfo() {
             try {
-                const info = await getVideoInfo(vidId);
+                const info = await getVideoInfo(project_id);
                 console.log("Video Info:", info);
                 setProjectName(info.project.name);
-                setDuration(info.probe.streams[0].duration);
-                setProjectLoc(info.project.project_location);
+                // setDuration(info.probe.streams[0].duration);
+                setProjectLoc(get_video_location(info));
             }
             catch (err) {
                 console.error("Error fetching video info:", err);
             }
         }
         fetchVideoInfo();
-    }, [vidId]);
+    }, [project_id]);
 
 
     const togglePlay = () => {
@@ -143,7 +154,7 @@ export default function VideoEditor({ vidId }: { vidId: string }) {
             const startStr = duration * (trimStart / 100);
             const endStr = duration * (trimEnd / 100);
             // Use trimStart and trimEnd directly as they are already in seconds
-            console.log(`Trimming video ${vidId} from ${trimStart}s to ${trimEnd}s`);
+            console.log(`Trimming video ${project_id} from ${trimStart}s to ${trimEnd}s`);
             await trimVideo(projectLoc, String(trimStart), String(trimEnd));
         } catch (err) {
             console.error(err);
@@ -199,7 +210,7 @@ export default function VideoEditor({ vidId }: { vidId: string }) {
                         <div className="aspect-video w-full max-w-4xl bg-zinc-900 rounded-lg border border-zinc-800 flex items-center justify-center shadow-2xl overflow-hidden relative group">
                             <video
                                 ref={videoRef}
-                                src={getVideoStream(vidId)}
+                                src={getVideoStream(projectLoc)}
                                 className="w-full h-full object-contain"
                                 onTimeUpdate={handleTimeUpdate}
                                 onLoadedMetadata={handleLoadedMetadata}
@@ -230,6 +241,8 @@ export default function VideoEditor({ vidId }: { vidId: string }) {
                             <p className="font-mono text-sm">1920x1080</p>
                         </div>
                     </div>
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase my-4">Prompt</h3>
+                    <PromptInput project_id={project_id} time={currentTime} />
                 </div>
             </div>
 

@@ -21,6 +21,3 @@ class ProjectRepository(BaseRepository):
 
     def create_project(self, data: ProjectModel):
         return self.database["projects"].insert_one(data.dict())
-
-    def get_project_by_file_id(self, project_file_id: str) -> ProjectModel:
-        return self.database["projects"].find_one({"project_file_id": project_file_id})

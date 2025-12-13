@@ -2,16 +2,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getUserProjects } from '../lib/projects';
-
-type ProjectModel = {
-    name: string;
-    project_id: string;
-    project_file_id: string;
-    user_id: string;
-    project_location: string;
-    last_edited: string;
-    thumbnail: string;
-}
+import { ProjectModel } from '../types/project_types';
 
 export default function RecentProjects() {
 
@@ -29,7 +20,7 @@ export default function RecentProjects() {
             <h2 className="md:text-2xl text-xl font-bold mb-6 text-white">Recent Projects</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {projects.map((project: ProjectModel) => (
-                    <Link href={`/${project.project_file_id}`} key={project.project_id} className="group block">
+                    <Link href={`/${project.project_id}`} key={project.project_id} className="group block">
                         <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all duration-300 hover:border-zinc-600 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1">
                             <div className="aspect-video relative bg-zinc-800 overflow-hidden">
                                 <img
