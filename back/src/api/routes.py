@@ -25,7 +25,7 @@ async def upload_file(file: UploadFile = File(...)):
         project_directory = os.path.join(ASSETS_DIR, project_unique_id)
         new_filename = f"{gen_uuid_str()}{file.filename}"
         file_path = os.path.join(project_directory, new_filename)
-        relative_file_path = os.path.join(f"{project_unique_id}/", new_filename)
+        relative_file_path = os.path.join(project_unique_id, new_filename)
 
         mongo_client = MongoClientSingleton()
         with ProjectRepository(mongo_client) as project_repository:
@@ -70,7 +70,7 @@ async def get_recent_projects():
     return []
 
 
-@router.get("/stream/{filepath}")
+@router.get("/stream/{filepath:path}")
 async def stream_video(filepath: str, range: Optional[str] = None):
     full_path = os.path.join(ASSETS_DIR, filepath)
     if not os.path.exists(full_path):
