@@ -13,4 +13,6 @@ dependencies = [
     "fastapi[standard]",
     "python-multipart>=0.0.9",
     "pymongo>=4.15.5",
+    "langfuse>=3.10.6",
+    "openinference-instrumentation-google-adk>=0.1.8",
 ]

@@ -2,6 +2,8 @@ from google.adk.agents import Agent
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
 from src.agents_instruction_prompt import DIRECTOR_PROMPT, IMAGE_CREATOR_PROMPT, VIDEO_CREATOR_PROMPT
+from langfuse import get_client
+from openinference.instrumentation.google_adk import GoogleADKInstrumentor
 
 
 from src.tools.content_creator import (
@@ -10,6 +12,16 @@ from src.tools.content_creator import (
 )
 
 from src.tools.freepik import gen_vid, gen_image
+
+
+langfuse = get_client()
+# Verify connection
+if langfuse.auth_check():
+    print("Langfuse client is authenticated and ready!")
+else:
+    print("Authentication failed. Please check your credentials and host.")
+
+GoogleADKInstrumentor().instrument()
 
 prompt_inspector_agent = Agent(
     name="prompt_inspector_agent",
