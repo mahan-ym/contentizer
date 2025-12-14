@@ -21,3 +21,8 @@ class ProjectRepository(BaseRepository):
 
     def create_project(self, data: ProjectModel):
         return self.database["projects"].insert_one(data.dict())
+
+    def update_project(self, project_id: str, update_data: dict):
+        return self.database["projects"].update_one(
+            {"project_id": project_id}, {"$set": update_data}
+        )

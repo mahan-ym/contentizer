@@ -1,11 +1,15 @@
 import os
 import requests
 from dotenv import load_dotenv
-from PIL.Image import Image
 import time
 import base64
 from src.services.uuid import gen_uuid_str
 from src.global_constants import ASSETS_DIR
+from src.shared_state import SharedState
+
+_shared_state = SharedState()
+print(f"[freepik.py MODULE LOAD] SharedState created with ID: {id(_shared_state)}")
+print(f"[freepik.py MODULE LOAD] Initial state: {_shared_state.__dict__}")
 
 
 # get from environment variables
@@ -17,9 +21,8 @@ timeout = 600  # 10 minutes
 
 
 def gen_vid(
-    image: str,
-    prompt: str,
-    negative_prompt: str,
+    prompt: str = "",
+    negative_prompt: str = "",
     duration: int = 5,
 ):
     """
@@ -32,7 +35,6 @@ def gen_vid(
         Video successfully downloaded as /path/to/generated_video.mp4
 
     Args:
-        image (str): The input image url or image path.
         prompt (str): The prompt to guide the video generation.
         negative_prompt (str): The negative prompt to avoid certain elements in the video.
         duration (int): The duration of the generated video in seconds. Default is 5. options: 5, 10
@@ -40,6 +42,18 @@ def gen_vid(
     Returns:
         str: The absolute path to the generated video file, or None if generation failed.
     """
+    print(f"[gen_vid] SharedState instance ID: {id(_shared_state)}")
+    print(f"[gen_vid] Current image_path attribute: {_shared_state.image_path}")
+
+    image = _shared_state.get_image_path()
+    if image:
+        print(f"[gen_vid] Using image from shared state: {image}")
+    else:
+        print("[gen_vid] Warning: No image found in shared state")
+        print(f"[gen_vid] _shared_state object: {_shared_state}")
+        print(f"[gen_vid] _shared_state.__dict__: {_shared_state.__dict__}")
+        return None
+
     endpoint = f"{BASE_URL}/ai/image-to-video/kling-v2-5-pro"
 
     headers = {
@@ -97,7 +111,11 @@ def gen_vid(
         if generation_ok:
             print("COMPLETED")
             # Download the video ---------------------------------------------------------------
-            VIDEO_URL = response.json()["data"]["generated"][0]
+            generated_list = response.json()["data"].get("generated")
+            if not generated_list:
+                print("[gen_vid] Error: No generated video URLs in response")
+                return None
+            VIDEO_URL = generated_list[0]
             video_uuid = gen_uuid_str()
             video_path = os.path.join(ASSETS_DIR, video_uuid)
             os.makedirs(video_path, exist_ok=True)
@@ -107,6 +125,9 @@ def gen_vid(
                 with open(file_name, "wb") as f:
                     f.write(video_response.content)
                 print(f"Video successfully downloaded as {file_name}")
+                # Store video path in shared state
+                if _shared_state is not None:
+                    _shared_state.set_video_path(file_name)
                 return file_name
             else:
                 print(
@@ -138,6 +159,10 @@ def gen_image(
     returns:
         str: The absolute path to the generated image file, or None if generation failed.
     """
+    print(f"[gen_image] CALLED with prompt: {prompt[:50]}...")
+    print(f"[gen_image] SharedState instance ID: {id(_shared_state)}")
+    print(f"[gen_image] Current state before generation: {_shared_state.__dict__}")
+
     endpoint = f"{BASE_URL}/ai/text-to-image/flux-pro-v1-1"
     headers = {
         "x-freepik-api-key": f"{FREEPIK_API_KEY}",
@@ -196,6 +221,15 @@ def gen_image(
                 with open(file_name, "wb") as f:
                     f.write(image_response.content)
                 print(f"Image successfully downloaded as {file_name}")
+                # Store image path in shared state
+                print(
+                    f"[gen_image] About to store image path in SharedState (ID: {id(_shared_state)})"
+                )
+                if _shared_state is not None:
+                    _shared_state.set_image_path(file_name)
+                    print(
+                        f"[gen_image] After storing, state is: {_shared_state.__dict__}"
+                    )
                 return file_name
             else:
                 print(
@@ -207,20 +241,3 @@ def gen_image(
             f"Error while generating the image. Status code: {response.status_code}, message: {response.json()['message']}"
         )
         return None
-
-
-# if __name__ == "__main__":
-# image_URL = "https://img.b2bpic.net/premium-photo/portrait-smiling-senior-woman-blue-vintage-convertible_220770-28364.jpg"
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# gen_vid(
-#     image= os.path.join(current_dir, "s-bg3.jpg"),
-#     prompt="create a shock and make the stones float into the sky. create a blue light around the stones when they are floated.",
-#     negative_prompt="blurry, low resolution, dark, gloomy, cartoon",
-#     duration=5,
-# )
-
-# gen_image(
-#     prompt="A Beautiful animated wrench flying toward the a bolt to fasten it, high detail, vibrant colors, dynamic lighting, dramatic angle, digital art",
-#     aspect_ratio="widescreen_16_9",
-# )

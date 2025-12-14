@@ -10,6 +10,9 @@ from src.services.mongo_client import MongoClientSingleton
 from src.global_constants import ASSETS_DIR, THUMBNAILS_DIR
 from src.services.video_edit import gen_thumbnail
 from datetime import datetime
+from logging import Logger
+
+logger = Logger("routes_logger")
 
 router = APIRouter()
 
@@ -31,9 +34,14 @@ async def upload_file(file: UploadFile = File(...)):
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+
+        logger.info(
+            f"File uploaded successfully: {file_path} \n new_filename: {new_filename} \n relative_file_path: {relative_file_path}"
+        )
         # Generate thumbnail
         result_thumbnail_path = gen_thumbnail(relative_file_path)
-        # update project with thumbnail path
+        logger.info(f"Thumbnail generated at: {result_thumbnail_path}")
+        # create project entry in DB
         mongo_client = MongoClientSingleton()
         with ProjectRepository(mongo_client) as project_repository:
             project_repository.create_project(
@@ -51,18 +59,21 @@ async def upload_file(file: UploadFile = File(...)):
                                 {
                                     "track_location": relative_file_path,
                                     "track_start_time": "00:00:00",
+                                    "track_type": "video",
                                 }
                             ],
                         }
                     ],
                 )
             )
+
+        logger.info(f"Project created in DB with ID: {project_unique_id}")
         return {
             "project": project_unique_id,
             "url": f"/api/stream/{relative_file_path}",
         }
     except Exception as e:
-        print(e.__str__())
+        logger.error(f"Error during file upload: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -72,12 +83,14 @@ async def get_recent_projects():
     with ProjectRepository(mongo_client) as project_repository:
         projects = project_repository.get_user_projects(user_id="0", count=10, index=0)
         return [project for project in projects]
+    logger.info("No recent projects found.")
     return []
 
 
 @router.get("/thumbnails/{filepath:path}")
 async def get_thumbnail(filepath: str):
     if not os.path.exists(filepath):
+        logger.error(f"Thumbnail not found at path: {filepath}")
         raise HTTPException(status_code=404, detail="Thumbnail not found")
 
     def iterfile():
@@ -91,6 +104,7 @@ async def get_thumbnail(filepath: str):
 async def stream_video(filepath: str, range: Optional[str] = None):
     full_path = os.path.join(ASSETS_DIR, filepath)
     if not os.path.exists(full_path):
+        logger.error(f"File not found at path: {full_path}")
         raise HTTPException(status_code=404, detail="File not found")
 
     file_size = os.path.getsize(full_path)

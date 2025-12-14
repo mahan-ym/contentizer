@@ -36,3 +36,60 @@ export async function getVideoInfo(video_id: string): Promise<any> {
 
     return response.json();
 }
+
+export async function addVideoToProject(
+    project_id: string,
+    video_path: string
+): Promise<any> {
+    const response = await fetch("http://localhost:8000/api/video/add_video", {
+        method: "POST",
+        body: JSON.stringify({
+            project_id: project_id,
+            video_path: video_path,
+        }),
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to add video to project");
+    }
+
+    return response.json();
+}
+
+export async function concatenateVideos(
+    project_id: string,
+    output_filename?: string
+): Promise<any> {
+    const response = await fetch("http://localhost:8000/api/video/concatenate", {
+        method: "POST",
+        body: JSON.stringify({
+            project_id: project_id,
+            output_filename: output_filename,
+        }),
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to concatenate videos");
+    }
+
+    return response.json();
+}
+
+
+export async function exportVideo(): Promise<any> {
+    const response = await fetch("http://localhost:8000/api/video/export", {
+        method: "POST",
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to export video");
+    }
+
+    return response.json();
+}

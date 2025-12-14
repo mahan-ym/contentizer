@@ -5,26 +5,34 @@ import { faPlay, faPause, faScissors, faMousePointer } from "@fortawesome/free-s
 import { trimVideo, getVideoInfo } from "../lib/video";
 import { getVideoStream } from "../lib/stream";
 import FloatingChat from "./FloatingChat";
+import VideoSequence from "./VideoSequence";
 
-function get_video_location(info: any): string {
-    console.log(info.project)
+interface Track {
+    track_location: string;
+    track_start_time: number;
+    track_duration?: number;
+    track_type: string;
+}
+
+function get_all_tracks(info: any): Track[] {
     const project_versions = info.project.project_versions;
-    console.log(project_versions);
     const project_tracks = project_versions[0].project_tracks;
-    console.log(project_tracks);
-    return project_tracks[0].track_location;
+    return project_tracks || [];
 }
 
 
 export default function VideoEditor({ project_id }: { project_id: string }) {
     const [projectName, setProjectName] = useState("");
     const [projectLoc, setProjectLoc] = useState("");
+    const [tracks, setTracks] = useState<Track[]>([]);
+    const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const timelineRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [totalProjectDuration, setTotalProjectDuration] = useState(0);
     const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
 
     // Trim state (visual only for now)
@@ -35,22 +43,43 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
 
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // call video info on start
-    useEffect(() => {
-        async function fetchVideoInfo() {
-            try {
-                const info = await getVideoInfo(project_id);
-                console.log("Video Info:", info);
-                setProjectName(info.project.name);
-                setDuration(info.probe[0].streams[0].duration);
-                setProjectLoc(get_video_location(info));
-            }
-            catch (err) {
-                console.error("Error fetching video info:", err);
+    // Fetch and update video info
+    const fetchVideoInfo = async () => {
+        try {
+            const info = await getVideoInfo(project_id);
+            console.log("Video Info:", info);
+            setProjectName(info.project.name);
+
+            const allTracks = get_all_tracks(info);
+            setTracks(allTracks);
+
+            // Calculate total project duration
+            const totalDur = allTracks.reduce((sum, track) => {
+                return sum + (track.track_duration || 0);
+            }, 0);
+            setTotalProjectDuration(totalDur);
+
+            // Set initial video
+            if (allTracks.length > 0) {
+                setProjectLoc(allTracks[0].track_location);
+                setDuration(allTracks[0].track_duration || info.probe[0]?.streams[0]?.duration || 0);
             }
         }
+        catch (err) {
+            console.error("Error fetching video info:", err);
+        }
+    };
+
+    // call video info on start
+    useEffect(() => {
         fetchVideoInfo();
     }, [project_id]);
+
+    // Callback for when a new video is added by the AI agent
+    const handleVideoAdded = () => {
+        console.log("New video added, refreshing tracks...");
+        fetchVideoInfo();
+    };
 
 
     const togglePlay = () => {
@@ -71,7 +100,36 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
 
     const handleTimeUpdate = () => {
         if (videoRef.current && !isDraggingPlayhead) {
-            setCurrentTime(videoRef.current.currentTime);
+            const localTime = videoRef.current.currentTime;
+
+            // Calculate absolute time in the project
+            const currentTrack = tracks[currentTrackIndex];
+            if (currentTrack) {
+                const absoluteTime = currentTrack.track_start_time + localTime;
+                setCurrentTime(absoluteTime);
+
+                // Check if we need to switch to the next video
+                if (localTime >= (currentTrack.track_duration || 0) - 0.1 && currentTrackIndex < tracks.length - 1) {
+                    playNextTrack();
+                }
+            }
+        }
+    };
+
+    const playNextTrack = () => {
+        const nextIndex = currentTrackIndex + 1;
+        if (nextIndex < tracks.length) {
+            setCurrentTrackIndex(nextIndex);
+            setProjectLoc(tracks[nextIndex].track_location);
+            setDuration(tracks[nextIndex].track_duration || 0);
+
+            // Reset video to start playing the next track
+            if (videoRef.current) {
+                videoRef.current.currentTime = 0;
+                if (isPlaying) {
+                    videoRef.current.play();
+                }
+            }
         }
     };
 
@@ -252,7 +310,7 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                             <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="text-xs" />
                         </button>
                         <span className="font-mono text-sm text-zinc-400">
-                            <span className="text-white">{formatTime(currentTime)}</span> / {formatTime(duration)}
+                            <span className="text-white">{formatTime(currentTime)}</span> / {formatTime(totalProjectDuration)}
                         </span>
                     </div>
                     {isTrimming && <div className="flex gap-2">
@@ -268,27 +326,36 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                     {/* Time Ruler */}
                     <div className="h-6 border-b border-zinc-800 flex justify-between text-[10px] text-zinc-600 font-mono select-none">
                         <span>00:00</span>
-                        <span>{formatTime(duration / 2)}</span>
-                        <span>{formatTime(duration)}</span>
+                        <span>{formatTime(totalProjectDuration / 2)}</span>
+                        <span>{formatTime(totalProjectDuration)}</span>
                     </div>
 
                     {/* Tracks Container */}
                     <div className="relative mt-2 h-full">
 
-                        {/* Track 1 */}
-                        <div className="h-16 bg-zinc-800/50 rounded-lg border border-zinc-700/50 mb-2 relative group overflow-hidden">
-                            {/* Video Strip Simulation */}
-                            <div className="absolute inset-0 opacity-20 flex" style={{ backgroundImage: 'linear-gradient(90deg, #333 1px, transparent 1px)', backgroundSize: '20px 100%' }}></div>
-                            <div className="absolute inset-y-0 left-0 bg-purple-600/30 border-r border-purple-500/50 px-2 flex items-center overflow-hidden whitespace-nowrap" style={{ width: '100%' }}>
-                                <span className="text-xs text-purple-200 font-medium truncate select-none">{projectName}</span>
-                            </div>
-                        </div>
+                        {/* Video Sequence - Multiple Tracks */}
+                        <VideoSequence
+                            tracks={tracks}
+                            duration={totalProjectDuration}
+                            projectName={projectName}
+                            onTrackClick={(track, index) => {
+                                setCurrentTrackIndex(index);
+                                setProjectLoc(track.track_location);
+                                setDuration(track.track_duration || 0);
+                                if (videoRef.current) {
+                                    videoRef.current.currentTime = 0;
+                                    if (isPlaying) {
+                                        videoRef.current.play();
+                                    }
+                                }
+                            }}
+                        />
 
                         {/* Playhead */}
-                        {(!isTrimming && duration > 0) && (
+                        {(!isTrimming && totalProjectDuration > 0) && (
                             <div
                                 className="absolute top-0 bottom-0 w-px bg-red-500 z-20 pointer-events-none transition-all duration-75"
-                                style={{ left: `${(currentTime / duration) * 100}%` }}
+                                style={{ left: `${(currentTime / totalProjectDuration) * 100}%` }}
                             >
                                 <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 transform rotate-45 shadow-sm" />
                             </div>
@@ -318,7 +385,11 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
             </div>
 
             {/* Floating Chat Widget */}
-            <FloatingChat project_id={project_id} time={currentTime} />
+            <FloatingChat
+                project_id={project_id}
+                time={currentTime}
+                onVideoAdded={handleVideoAdded}
+            />
         </div>
     );
 }

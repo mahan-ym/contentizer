@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { generatePrompt } from "../lib/prompt";
+import { addVideoToProject } from "../lib/video";
 import { faMessage, faClose, faRocket, faRobot } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -11,7 +12,13 @@ interface Message {
     timestamp: Date;
 }
 
-export default function FloatingChat({ project_id, time }: { project_id: string; time: number }) {
+interface FloatingChatProps {
+    project_id: string;
+    time: number;
+    onVideoAdded?: () => void;
+}
+
+export default function FloatingChat({ project_id, time, onVideoAdded }: FloatingChatProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -33,13 +40,45 @@ export default function FloatingChat({ project_id, time }: { project_id: string;
         try {
             const response = await generatePrompt(String(project_id), String(time), inputValue);
 
-            const assistantMessage: Message = {
-                role: "assistant",
-                content: response.message || "Task completed successfully!",
-                timestamp: new Date()
-            };
+            console.log("Agent Response:", response);
 
-            setMessages(prev => [...prev, assistantMessage]);
+            // Check if this is a video generation response
+            const isVideoGen = response.generated_video_path !== undefined;
+            const videoPath = response.generated_video_path;
+
+            if (isVideoGen && videoPath) {
+                // Add generated video to project sequence
+                try {
+                    await addVideoToProject(String(project_id), videoPath);
+
+                    const assistantMessage: Message = {
+                        role: "assistant",
+                        content: `✅ Video generated and added to timeline!\n\n${response.response || "Video created successfully"}`,
+                        timestamp: new Date()
+                    };
+                    setMessages(prev => [...prev, assistantMessage]);
+
+                    // Trigger refresh callback
+                    if (onVideoAdded) {
+                        onVideoAdded();
+                    }
+                } catch (addError) {
+                    console.error("Error adding video to project:", addError);
+                    const assistantMessage: Message = {
+                        role: "assistant",
+                        content: `Video generated but couldn't be added to timeline.\n\nPath: ${videoPath}`,
+                        timestamp: new Date()
+                    };
+                    setMessages(prev => [...prev, assistantMessage]);
+                }
+            } else {
+                const assistantMessage: Message = {
+                    role: "assistant",
+                    content: response.response || "Task completed successfully!",
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, assistantMessage]);
+            }
         } catch (err) {
             console.error(err);
             const errorMessage: Message = {
@@ -135,6 +174,7 @@ export default function FloatingChat({ project_id, time }: { project_id: string;
                                     <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                                     <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                                     <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                                    <p className="text-sm text-zinc-500 ml-2"> Generating, This might take a while </p>
                                 </div>
                             </div>
                         </div>
