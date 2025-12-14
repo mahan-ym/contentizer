@@ -8,8 +8,6 @@ from src.global_constants import ASSETS_DIR
 from src.shared_state import SharedState
 
 _shared_state = SharedState()
-print(f"[freepik.py MODULE LOAD] SharedState created with ID: {id(_shared_state)}")
-print(f"[freepik.py MODULE LOAD] Initial state: {_shared_state.__dict__}")
 
 
 # get from environment variables
@@ -42,8 +40,6 @@ def gen_vid(
     Returns:
         str: The absolute path to the generated video file, or None if generation failed.
     """
-    print(f"[gen_vid] SharedState instance ID: {id(_shared_state)}")
-    print(f"[gen_vid] Current image_path attribute: {_shared_state.image_path}")
 
     image = _shared_state.get_image_path()
     if image:
@@ -159,9 +155,6 @@ def gen_image(
     returns:
         str: The absolute path to the generated image file, or None if generation failed.
     """
-    print(f"[gen_image] CALLED with prompt: {prompt[:50]}...")
-    print(f"[gen_image] SharedState instance ID: {id(_shared_state)}")
-    print(f"[gen_image] Current state before generation: {_shared_state.__dict__}")
 
     endpoint = f"{BASE_URL}/ai/text-to-image/flux-pro-v1-1"
     headers = {
