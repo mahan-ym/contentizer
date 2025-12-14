@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlay, faPause, faScissors, faMousePointer } from "@fortawesome/free-solid-svg-icons";
 import { trimVideo, getVideoInfo } from "../lib/video";
 import { getVideoStream } from "../lib/stream";
-import PromptInput from "./PromptInput";
+import FloatingChat from "./FloatingChat";
 
 function get_video_location(info: any): string {
     console.log(info.project)
@@ -42,7 +42,7 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                 const info = await getVideoInfo(project_id);
                 console.log("Video Info:", info);
                 setProjectName(info.project.name);
-                // setDuration(info.probe.streams[0].duration);
+                setDuration(info.probe[0].streams[0].duration);
                 setProjectLoc(get_video_location(info));
             }
             catch (err) {
@@ -241,8 +241,6 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                             <p className="font-mono text-sm">1920x1080</p>
                         </div>
                     </div>
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase my-4">Prompt</h3>
-                    <PromptInput project_id={project_id} time={currentTime} />
                 </div>
             </div>
 
@@ -318,6 +316,9 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                     </div>
                 </div>
             </div>
+
+            {/* Floating Chat Widget */}
+            <FloatingChat project_id={project_id} time={currentTime} />
         </div>
     );
 }

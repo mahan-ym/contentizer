@@ -22,8 +22,10 @@ Video Generation:
 
 Finalization:
 1. Review Output: Ensure that the generated video meets the user's requirements and incorporates the image appropriately.
-2. Deliver Output: Provide the final video to the user.
+2. Deliver Output: Provide the final video to the user by providing the absolute path to the video file.
 
+Important Notes:
+Always return the absolute file path of the video at the final response.
 """
 
 IMAGE_CREATOR_PROMPT = """

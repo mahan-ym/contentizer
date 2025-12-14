@@ -5,6 +5,9 @@ export async function generatePrompt(
 ): Promise<any> {
     const response = await fetch("http://localhost:8000/api/agent/prompt", {
         method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
         body: JSON.stringify({
             video_id: video_id,
             time: time,
