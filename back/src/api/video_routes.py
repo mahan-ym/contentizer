@@ -200,3 +200,9 @@ async def concatenate_project_videos(request: ConcatenateRequest):
         raise HTTPException(
             status_code=500, detail=f"Error concatenating videos: {str(e)}"
         )
+    
+@router.get("/video_duration/{file_path:str}")
+async def get_video_duration_endpoint(file_path: str):
+    """Get the duration of a video file"""
+    get_video_duration(file_path)
+

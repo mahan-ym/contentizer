@@ -1,5 +1,4 @@
 "use client";
-import React from 'react';
 
 interface Track {
     track_location: string;
@@ -11,11 +10,10 @@ interface Track {
 interface VideoSequenceProps {
     tracks: Track[];
     duration: number;
-    projectName: string;
     onTrackClick?: (track: Track, index: number) => void;
 }
 
-export default function VideoSequence({ tracks, duration, projectName, onTrackClick }: VideoSequenceProps) {
+export default function VideoSequence({ tracks, duration, onTrackClick }: VideoSequenceProps) {
     const getTrackColor = (index: number) => {
         const colors = [
             'bg-purple-600/30 border-purple-500/50',
@@ -39,9 +37,8 @@ export default function VideoSequence({ tracks, duration, projectName, onTrackCl
     };
 
     return (
-        <div className="relative h-full">
+        <div className="relative h-16 flex gap-2">
             {tracks.map((track, index) => {
-                const startPercentage = duration > 0 ? (track.track_start_time / duration) * 100 : 0;
                 const widthPercentage = duration > 0 && track.track_duration
                     ? (track.track_duration / duration) * 100
                     : 100 / tracks.length;
@@ -49,7 +46,8 @@ export default function VideoSequence({ tracks, duration, projectName, onTrackCl
                 return (
                     <div
                         key={index}
-                        className={`h-16 ${getTrackColor(index)} rounded-lg border mb-2 relative group overflow-hidden cursor-pointer hover:opacity-80 transition-opacity`}
+                        className={`h-full ${getTrackColor(index)} rounded-lg border relative group overflow-hidden cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0`}
+                        style={{ width: `${widthPercentage}%` }}
                         onClick={() => onTrackClick?.(track, index)}
                     >
                         {/* Video Strip Background Pattern */}
@@ -62,13 +60,7 @@ export default function VideoSequence({ tracks, duration, projectName, onTrackCl
                         />
 
                         {/* Track Content */}
-                        <div
-                            className="absolute inset-y-0 px-2 flex items-center overflow-hidden whitespace-nowrap"
-                            style={{
-                                left: `${startPercentage}%`,
-                                width: `${widthPercentage}%`
-                            }}
-                        >
+                        <div className="absolute inset-0 px-2 flex items-center overflow-hidden whitespace-nowrap">
                             <span className={`text-xs ${getTrackTextColor(index)} font-medium truncate select-none`}>
                                 {track.track_location.split('/').pop() || `Video ${index + 1}`}
                             </span>
@@ -76,7 +68,7 @@ export default function VideoSequence({ tracks, duration, projectName, onTrackCl
                             {/* Duration Badge */}
                             {track.track_duration && (
                                 <span className="ml-auto text-[10px] text-white/60 bg-black/30 px-1.5 py-0.5 rounded">
-                                    {track.track_duration.toFixed(1)}s
+                                    {Number(track.track_duration).toFixed(1)}s
                                 </span>
                             )}
                         </div>

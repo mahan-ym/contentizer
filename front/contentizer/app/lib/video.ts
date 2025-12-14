@@ -93,3 +93,15 @@ export async function exportVideo(): Promise<any> {
 
     return response.json();
 }
+
+export async function getVideoDuration(file_path: string): Promise<any> {
+    const response = await fetch(`http://localhost:8000/api/video/video_duration/${file_path}`, {
+        method: "GET",
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to get video info");
+    }
+
+    return response.json();
+}

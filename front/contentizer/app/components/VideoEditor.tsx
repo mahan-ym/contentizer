@@ -51,18 +51,32 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
             setProjectName(info.project.name);
 
             const allTracks = get_all_tracks(info);
-            setTracks(allTracks);
+
+            // Ensure each track has duration from probe if not set
+            const tracksWithDuration = allTracks.map((track, index) => {
+                if (!track.track_duration && info.probe && info.probe[index]) {
+                    const duration = Number(info.probe[index]?.streams?.[0]?.duration) ||
+                        Number(info.probe[index]?.format?.duration) ||
+                        0;
+                    return { ...track, track_duration: duration };
+                }
+                return track;
+            });
+
+            console.log("Tracks with duration:", tracksWithDuration);
+            setTracks(tracksWithDuration);
 
             // Calculate total project duration
-            const totalDur = allTracks.reduce((sum, track) => {
+            const totalDur = tracksWithDuration.reduce((sum, track) => {
                 return sum + (track.track_duration || 0);
             }, 0);
+            console.log("Total project duration:", totalDur);
             setTotalProjectDuration(totalDur);
 
             // Set initial video
-            if (allTracks.length > 0) {
-                setProjectLoc(allTracks[0].track_location);
-                setDuration(allTracks[0].track_duration || info.probe[0]?.streams[0]?.duration || 0);
+            if (tracksWithDuration.length > 0) {
+                setProjectLoc(tracksWithDuration[0].track_location);
+                setDuration(tracksWithDuration[0].track_duration || 0);
             }
         }
         catch (err) {
@@ -102,16 +116,20 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
         if (videoRef.current && !isDraggingPlayhead) {
             const localTime = videoRef.current.currentTime;
 
-            // Calculate absolute time in the project
-            const currentTrack = tracks[currentTrackIndex];
-            if (currentTrack) {
-                const absoluteTime = currentTrack.track_start_time + localTime;
-                setCurrentTime(absoluteTime);
+            // Calculate cumulative time up to current track
+            let cumulativeTime = 0;
+            for (let i = 0; i < currentTrackIndex; i++) {
+                cumulativeTime += tracks[i].track_duration || 0;
+            }
 
-                // Check if we need to switch to the next video
-                if (localTime >= (currentTrack.track_duration || 0) - 0.1 && currentTrackIndex < tracks.length - 1) {
-                    playNextTrack();
-                }
+            // Calculate absolute time in the project
+            const absoluteTime = cumulativeTime + localTime;
+            setCurrentTime(absoluteTime);
+
+            // Check if we need to switch to the next video
+            const currentTrack = tracks[currentTrackIndex];
+            if (currentTrack && localTime >= (currentTrack.track_duration || 0) - 0.1 && currentTrackIndex < tracks.length - 1) {
+                playNextTrack();
             }
         }
     };
@@ -140,14 +158,37 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
     };
 
     const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (timelineRef.current && videoRef.current) {
+        if (timelineRef.current && videoRef.current && totalProjectDuration > 0) {
             const rect = timelineRef.current.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const percentage = Math.max(0, Math.min(1, x / rect.width));
-            const time = percentage * duration;
+            const absoluteTime = percentage * totalProjectDuration;
 
-            videoRef.current.currentTime = time;
-            setCurrentTime(time);
+            // Find which track this time belongs to
+            let cumulativeTime = 0;
+            for (let i = 0; i < tracks.length; i++) {
+                const trackDuration = tracks[i].track_duration || 0;
+                if (absoluteTime <= cumulativeTime + trackDuration) {
+                    // This is the correct track
+                    const localTime = absoluteTime - cumulativeTime;
+                    setCurrentTrackIndex(i);
+                    setProjectLoc(tracks[i].track_location);
+                    setDuration(trackDuration);
+
+                    setTimeout(() => {
+                        if (videoRef.current) {
+                            videoRef.current.load();
+                            videoRef.current.currentTime = localTime;
+                            setCurrentTime(absoluteTime);
+                            if (isPlaying) {
+                                videoRef.current.play().catch(err => console.error('Play error:', err));
+                            }
+                        }
+                    }, 50);
+                    break;
+                }
+                cumulativeTime += trackDuration;
+            }
         }
     };
 
@@ -325,9 +366,15 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                 <div className="flex-1 relative overflow-hidden mx-4 my-2" ref={timelineRef} onClick={handleTimelineClick}>
                     {/* Time Ruler */}
                     <div className="h-6 border-b border-zinc-800 flex justify-between text-[10px] text-zinc-600 font-mono select-none">
-                        <span>00:00</span>
-                        <span>{formatTime(totalProjectDuration / 2)}</span>
-                        <span>{formatTime(totalProjectDuration)}</span>
+                        {totalProjectDuration > 0 ? (
+                            <>
+                                <span>{formatTime(0)}</span>
+                                <span>{formatTime(totalProjectDuration / 2)}</span>
+                                <span>{formatTime(totalProjectDuration)}</span>
+                            </>
+                        ) : (
+                            <span>00:00</span>
+                        )}
                     </div>
 
                     {/* Tracks Container */}
@@ -337,17 +384,32 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                         <VideoSequence
                             tracks={tracks}
                             duration={totalProjectDuration}
-                            projectName={projectName}
                             onTrackClick={(track, index) => {
+                                console.log('Track clicked:', track, 'Index:', index);
                                 setCurrentTrackIndex(index);
-                                setProjectLoc(track.track_location);
-                                setDuration(track.track_duration || 0);
-                                if (videoRef.current) {
-                                    videoRef.current.currentTime = 0;
-                                    if (isPlaying) {
-                                        videoRef.current.play();
-                                    }
+                                const newLocation = track.track_location;
+                                const newDuration = track.track_duration || 0;
+
+                                setProjectLoc(newLocation);
+                                setDuration(newDuration);
+
+                                // Calculate cumulative start time for this track
+                                let cumulativeStartTime = 0;
+                                for (let i = 0; i < index; i++) {
+                                    cumulativeStartTime += tracks[i].track_duration || 0;
                                 }
+                                setCurrentTime(cumulativeStartTime);
+
+                                // Give React a moment to update the video source
+                                setTimeout(() => {
+                                    if (videoRef.current) {
+                                        videoRef.current.load(); // Force reload of the new source
+                                        videoRef.current.currentTime = 0;
+                                        if (isPlaying) {
+                                            videoRef.current.play().catch(err => console.error('Play error:', err));
+                                        }
+                                    }
+                                }, 50);
                             }}
                         />
 
@@ -362,7 +424,7 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                         )}
 
                         {/* Trim Handles (Interactive) */}
-                        {isTrimming && (
+                        {/* {isTrimming && (
                             <>
                                 <div
                                     className="absolute top-0 bottom-0 w-px bg-yellow-500 z-20 cursor-grab active:cursor-grabbing transition-all duration-75"
@@ -379,7 +441,7 @@ export default function VideoEditor({ project_id }: { project_id: string }) {
                                     <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-yellow-800 transform rotate-45 shadow-sm pointer-events-none" />
                                 </div>
                             </>
-                        )}
+                        )} */}
                     </div>
                 </div>
             </div>
