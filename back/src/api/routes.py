@@ -7,12 +7,14 @@ from src.services.uuid import gen_uuid_str
 from src.repository.project_repository import ProjectRepository
 from src.models.project_model import ProjectModel
 from src.services.mongo_client import MongoClientSingleton
-from src.global_constants import ASSETS_DIR
+from src.global_constants import ASSETS_DIR, THUMBNAILS_DIR
+from src.services.video_edit import gen_thumbnail
 from datetime import datetime
 
 router = APIRouter()
 
 os.makedirs(ASSETS_DIR, exist_ok=True)
+os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 
 
 @router.post("/upload")
@@ -27,6 +29,11 @@ async def upload_file(file: UploadFile = File(...)):
         file_path = os.path.join(project_directory, new_filename)
         relative_file_path = os.path.join(project_unique_id, new_filename)
 
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        # Generate thumbnail
+        result_thumbnail_path = gen_thumbnail(relative_file_path)
+        # update project with thumbnail path
         mongo_client = MongoClientSingleton()
         with ProjectRepository(mongo_client) as project_repository:
             project_repository.create_project(
@@ -36,7 +43,7 @@ async def upload_file(file: UploadFile = File(...)):
                     user_id="0",
                     project_directory=f"{project_unique_id}/",
                     last_edited=datetime.now().isoformat(),
-                    thumbnail="https://placehold.co/400",
+                    thumbnail=result_thumbnail_path,
                     project_versions=[
                         {
                             "version": "0",
@@ -50,8 +57,6 @@ async def upload_file(file: UploadFile = File(...)):
                     ],
                 )
             )
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
         return {
             "project": project_unique_id,
             "url": f"/api/stream/{relative_file_path}",
@@ -68,6 +73,18 @@ async def get_recent_projects():
         projects = project_repository.get_user_projects(user_id="0", count=10, index=0)
         return [project for project in projects]
     return []
+
+
+@router.get("/thumbnails/{filepath:path}")
+async def get_thumbnail(filepath: str):
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+    def iterfile():
+        with open(filepath, "rb") as thumbnail:
+            yield thumbnail.read()
+
+    return StreamingResponse(iterfile(), media_type="image/jpeg")
 
 
 @router.get("/stream/{filepath:path}")

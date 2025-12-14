@@ -24,7 +24,7 @@ export default function RecentProjects() {
                         <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all duration-300 hover:border-zinc-600 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1">
                             <div className="aspect-video relative bg-zinc-800 overflow-hidden">
                                 <img
-                                    src={project.thumbnail}
+                                    src={`http://localhost:8000/api/thumbnails/${project.thumbnail}`}
                                     alt={project.name}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80 group-hover:opacity-100"
                                 />
